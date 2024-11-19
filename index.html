@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>High-Tech Stock Market Simulator</title>
+  <style>
+    /* General Styling */
+    body {
+      font-family: 'Roboto', sans-serif;
+      margin: 0;
+      padding: 0;
+      color: #fff;
+      background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+      height: 100vh;
+      overflow-x: hidden;
+    }
+    h1, h2 {
+      text-align: center;
+      color: #00d4ff;
+    }
+    h1 {
+      margin-top: 20px;
+      font-size: 2.5rem;
+    }
+    #stocks, #portfolio {
+      margin: 20px auto;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 15px;
+      border-radius: 8px;
+      width: 90%;
+      max-width: 1000px;
+      box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+    }
+    .stock, .holding {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 10px 0;
+      color: #ccc;
+    }
+    button {
+      margin-left: 10px;
+      padding: 8px 15px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: transform 0.2s, background-color 0.2s;
+    }
+    button:hover {
+      transform: scale(1.1);
+    }
+    button.buy {
+      background-color: #00d4ff;
+      color: black;
+    }
+    button.sell {
+      background-color: #ff4b5c;
+      color: white;
+    }
+    button.buy:hover {
+      background-color: #33eaff;
+    }
+    button.sell:hover {
+      background-color: #ff6b7d;
+    }
+    .portfolio-summary {
+      margin-top: 10px;
+      color: #00ffa2;
+    }
+    canvas {
+      margin-top: 20px;
+    }
+
+    /* Subtle Animation for High-Tech Vibes */
+    @keyframes glow {
+      0% { box-shadow: 0 0 10px rgba(0, 255, 255, 0.2); }
+      50% { box-shadow: 0 0 20px rgba(0, 255, 255, 0.5); }
+      100% { box-shadow: 0 0 10px rgba(0, 255, 255, 0.2); }
+    }
+    #stocks, #portfolio {
+      animation: glow 3s infinite;
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <h1>Realistic Stock Market Simulator</h1>
+  <div id="stocks">
+    <h2>Available Stocks</h2>
+    <div id="stock-list"></div>
+    <canvas id="stockChart" width="400" height="200"></canvas>
+  </div>
+  <div id="portfolio">
+    <h2>Your Portfolio</h2>
+    <div id="portfolio-summary"></div>
+    <div id="holdings-list"></div>
+  </div>
+
+  <script>
+    // Initial Stock Data
+    const stocks = [
+      { id: 1, name: "AAPL", price: 150, history: [150] },
+      { id: 2, name: "GOOG", price: 2800, history: [2800] },
+      { id: 3, name: "AMZN", price: 3500, history: [3500] },
+      { id: 4, name: "TSLA", price: 700, history: [700] },
+      { id: 5, name: "MSFT", price: 310, history: [310] },
+      { id: 6, name: "META", price: 280, history: [280] },
+      { id: 7, name: "NFLX", price: 480, history: [480] },
+      { id: 8, name: "NVDA", price: 450, history: [450] },
+      { id: 9, name: "AMD", price: 120, history: [120] },
+    ];
+
+    const portfolio = {
+      cash: 50000,
+      holdings: [],
+    };
+
+    let selectedStockId = 1;
+
+    // Chart.js Configuration
+    const ctx = document.getElementById('stockChart').getContext('2d');
+    const stockChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: ['Start'],
+        datasets: [{
+          label: 'Stock Price',
+          data: [stocks[0].price],
+          borderColor: 'rgba(0, 212, 255, 1)',
+          borderWidth: 2,
+          tension: 0.4,
+          backgroundColor: 'rgba(0, 212, 255, 0.1)',
+        }],
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: true },
+        },
+        scales: {
+          x: { title: { display: true, text: 'Time', color: '#00d4ff' } },
+          y: { title: { display: true, text: 'Price ($)', color: '#00d4ff' }, ticks: { color: '#fff' } },
+        },
+      },
+    });
+
+    function updateChart(stock) {
+      stockChart.data.labels = stock.history.map((_, index) => `T${index}`);
+      stockChart.data.datasets[0].data = stock.history;
+      stockChart.update();
+    }
+
+    // Functions to Render Data
+    function renderStocks() {
+      const stockList = document.getElementById("stock-list");
+      stockList.innerHTML = ""; // Clear the list
+      stocks.forEach(stock => {
+        const stockDiv = document.createElement("div");
+        stockDiv.className = "stock";
+        stockDiv.innerHTML = `
+          <span>${stock.name}: $${stock.price.toFixed(2)}</span>
+          <button class="buy" onclick="buyStock(${stock.id})">Buy</button>
+          <button class="sell" onclick="sellStock(${stock.id})">Sell</button>
+          <button onclick="selectStock(${stock.id})">View Graph</button>
+        `;
+        stockList.appendChild(stockDiv);
+      });
+    }
+
+    function renderPortfolio() {
+      const summaryDiv = document.getElementById("portfolio-summary");
+      const holdingsList = document.getElementById("holdings-list");
+
+      summaryDiv.innerHTML = `<p>Cash: $${portfolio.cash.toFixed(2)}</p>`;
+      holdingsList.innerHTML = ""; // Clear holdings list
+
+      if (portfolio.holdings.length === 0) {
+        holdingsList.innerHTML = "<p>No holdings yet.</p>";
+      } else {
+        portfolio.holdings.forEach(holding => {
+          const holdingDiv = document.createElement("div");
+          holdingDiv.className = "holding";
+          holdingDiv.innerHTML = `
+            <span>${holding.name} - ${holding.quantity} shares</span>
+            <span>Value: $${(holding.quantity * holding.price).toFixed(2)}</span>
+          `;
+          holdingsList.appendChild(holdingDiv);
+        });
+      }
+    }
+
+    // Trading Functions
+    function buyStock(stockId) {
+      const quantity = parseInt(prompt("Enter quantity to buy:"));
+      if (isNaN(quantity) || quantity <= 0) return;
+
+      const stock = stocks.find(s => s.id === stockId);
+      const totalCost = stock.price * quantity;
+
+      if (portfolio.cash < totalCost) {
+        alert("Not enough cash!");
+        return;
+      }
+
+      portfolio.cash -= totalCost;
+
+      const existingHolding = portfolio.holdings.find(h => h.id === stockId);
+      if (existingHolding) {
+        existingHolding.quantity += quantity;
+      } else {
+        portfolio.holdings.push({ id: stock.id, name: stock.name, price: stock.price, quantity });
+      }
+
+      renderPortfolio();
+    }
+
+    function sellStock(stockId) {
+      const quantity = parseInt(prompt("Enter quantity to sell:"));
+      if (isNaN(quantity) || quantity <= 0) return;
+
+      const holding = portfolio.holdings.find(h => h.id === stockId);
+      if (!holding || holding.quantity < quantity) {
+        alert("Not enough shares to sell!");
+        return;
+      }
+
+      const stock = stocks.find(s => s.id === stockId);
+      const totalSale = stock.price * quantity;
+
+      portfolio.cash += totalSale;
+      holding.quantity -= quantity;
+
+      if (holding.quantity === 0) {
+        portfolio.holdings = portfolio.holdings.filter(h => h.id !== stockId);
+      }
+
+      renderPortfolio();
+    }
+
+    function selectStock(stockId) {
+      selectedStockId = stockId;
+      const stock = stocks.find(s => s.id === stockId);
+      updateChart(stock);
+    }
+
+    // Simulate Stock Price Updates
+    function updateStockPrices() {
+      stocks.forEach(stock => {
+        const fluctuation = (Math.random() - 0.5) * 0.05; // Random 5% fluctuation
+        stock.price = +(stock.price * (1 + fluctuation)).toFixed(2);
+        stock.history.push(stock.price);
+        if (stock.history.length > 50) stock.history.shift(); // Limit history length
+      });
+      renderStocks();
+      const selectedStock = stocks.find(s => s.id === selectedStockId);
+      updateChart(selectedStock);
+    }
+
+    // Initialize the App
+    renderStocks();
+    renderPortfolio();
+    setInterval(updateStockPrices, 1000); // Update prices every 1 second
+  </script>
+</body>
+</html>
